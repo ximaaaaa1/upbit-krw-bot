@@ -12,7 +12,8 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 os.makedirs("upbit_scans", exist_ok=True)
 
-BOT_TOKEN = "8522893493:AAG9L-mPLcNYgA8kyid5hNBAjC3tlK4PYi0"
+import os
+BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_TOKEN_HERE')
 GROUP_ID_1 = "-1003432880225"
 TOPIC_ID_1 = 1390
 GROUP_ID_2 = "@upbit_v5_3"

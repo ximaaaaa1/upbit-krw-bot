@@ -34,7 +34,7 @@ app.post('/api/run-bot', (req, res) => {
   
   try {
     const pythonPath = 'python3' || 'python';
-    const scriptPath = path.join(__dirname, 'upbit_mega_fast.py');
+    const scriptPath = path.join(__dirname, 'upbit_bot_api.py');
     
     // Execute with timeout
     let result = '';
@@ -42,67 +42,36 @@ app.post('/api/run-bot', (req, res) => {
       result = execSync(`${pythonPath} "${scriptPath}"`, {
         timeout: 300000, // 5 minutes
         encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: path.join(__dirname, '..')
+        stdio: ['pipe', 'pipe', 'pipe']
       });
     } catch (e) {
       // execSync throws on non-zero exit
       result = e.stdout || '';
-      console.error('[API] Script error output:', e.stderr || '');
+      console.error('[API] Script error:', e.stderr || e.message);
     }
     
-    // Parse results from output
-    let botResults = [];
+    // Parse JSON output from Python script
+    let botData = { success: false, signals_count: 0, results: [] };
     try {
-      // Look for "=== RESULTS ===" section
-      const lines = result.split('\n');
-      const resultLines = [];
-      let inResults = false;
-      
-      for (const line of lines) {
-        if (line.includes('== RESULTS ==') || line.includes('== TOP')) {
-          inResults = true;
-          continue;
-        }
-        if (inResults && line.trim().startsWith('1.')) {
-          // Parse table rows like: "1. USDT-ALT | Vol: 30.99x..."
-          const match = line.match(/\d+\.\s+([A-Z0-9]+)[^|]*\|\s*Vol:\s*([\d.]+)x[^|]*\|\s*([^|]+)\|\s*Price:\s*([^\n]+)/);
-          if (match) {
-            botResults.push({
-              coin: match[1],
-              vol_ratio: parseFloat(match[2]),
-              status: match[3].trim(),
-              price_change: match[4].trim()
-            });
-          }
-        }
+      // Extract JSON from output
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        botData = JSON.parse(jsonMatch[0]);
       }
-      
-      // If no table found, try to count anomalies from output
-      const anomalyMatch = result.match(/Found (\d+) anomalies/i);
-      const signalCount = anomalyMatch ? parseInt(anomalyMatch[1]) : botResults.length;
-      
-      console.log(`[API] Bot completed. Found ${signalCount} signals`);
-      
-      res.json({
-        success: true,
-        signals_count: signalCount,
-        results: botResults.slice(0, 30),
-        timestamp: new Date().toISOString(),
-        message: 'Bot executed successfully'
-      });
-      
     } catch (parseErr) {
-      console.error('[API] Parse error:', parseErr.message);
-      res.json({
-        success: true,
-        signals_count: 0,
-        results: [],
-        timestamp: new Date().toISOString(),
-        message: 'Bot completed but failed to parse results',
-        raw_output: result.substring(0, 500)
-      });
+      console.error('[API] JSON parse error:', parseErr.message);
+      console.error('[API] Raw output:', result.substring(0, 500));
     }
+    
+    console.log(`[API] Bot completed. Found ${botData.signals_count} signals`);
+    
+    res.json({
+      success: botData.success && botData.signals_count > 0,
+      signals_count: botData.signals_count || 0,
+      results: botData.results || [],
+      timestamp: botData.timestamp || new Date().toISOString(),
+      message: botData.signals_count > 0 ? 'Bot executed successfully' : 'No anomalies detected'
+    });
     
   } catch (error) {
     console.error('[API] Bot error:', error.message);

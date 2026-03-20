@@ -306,6 +306,21 @@
       <div class="logs-box" id="logs">
         <div class="log-line info">[INFO] Logs will appear here...</div>
       </div>
+
+      <div id="results-box" style="display: none; width: 100%; margin-top: 32px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+          <span style="font-family: var(--font-mono); font-size: 12px; color: var(--success);">📊 TOP-30 SIGNALS</span>
+          <span id="results-count" style="font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary);">0</span>
+        </div>
+        <div id="results-table" style="
+          background: var(--bg-surface-high);
+          border-radius: 12px;
+          padding: 16px;
+          max-height: 400px;
+          overflow-y: auto;
+          border: 1px solid rgba(74, 136, 255, 0.2);
+        "></div>
+      </div>
     </div>
   </div>
 
@@ -359,9 +374,11 @@
         if (data.success) {
           addLog(`[✓] Bot execution successful!`, 'success');
           addLog(`[✓] Found ${data.signals_count} anomalies`, 'success');
-          addLog(`[✓] Results sent to Telegram`, 'success');
           signalCount = data.signals_count || 0;
           document.getElementById('signals').textContent = signalCount;
+          
+          // Display results
+          displayResults(data.results || []);
         } else {
           addLog(`[✗] Error: ${data.error}`, 'error');
         }
@@ -385,6 +402,47 @@
       line.textContent = message;
       logsBox.appendChild(line);
       logsBox.scrollTop = logsBox.scrollHeight;
+    }
+
+    function displayResults(results) {
+      const resultsBox = document.getElementById('results-box');
+      const resultsTable = document.getElementById('results-table');
+      const resultsCount = document.getElementById('results-count');
+      
+      resultsCount.textContent = `${results.length} found`;
+      
+      if (!results || results.length === 0) {
+        resultsTable.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">No signals found</div>';
+        resultsBox.style.display = 'block';
+        return;
+      }
+      
+      let html = '<table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--font-mono);">';
+      html += '<thead><tr style="border-bottom: 1px solid rgba(74, 136, 255, 0.3);">';
+      html += '<th style="text-align: left; padding: 8px; color: var(--success);">#</th>';
+      html += '<th style="text-align: left; padding: 8px; color: var(--success);">COIN</th>';
+      html += '<th style="text-align: right; padding: 8px; color: var(--success);">VOL RATIO</th>';
+      html += '<th style="text-align: right; padding: 8px; color: var(--success);">PRICE</th>';
+      html += '<th style="text-align: center; padding: 8px; color: var(--success);">STATUS</th>';
+      html += '<th style="text-align: right; padding: 8px; color: var(--success);">SCORE</th>';
+      html += '</tr></thead>';
+      html += '<tbody>';
+      
+      results.forEach((r, i) => {
+        const rowColor = i % 2 === 0 ? 'transparent' : 'rgba(74, 136, 255, 0.05)';
+        html += `<tr style="background: ${rowColor}; border-bottom: 1px solid rgba(74, 136, 255, 0.1);">`;
+        html += `<td style="padding: 8px;">${i + 1}</td>`;
+        html += `<td style="padding: 8px; color: #4A88FF; font-weight: bold;">${r.coin}</td>`;
+        html += `<td style="padding: 8px; text-align: right; color: var(--success);">${r.vol_ratio}x</td>`;
+        html += `<td style="padding: 8px; text-align: right; color: ${r.price_change.includes('+') ? 'var(--success)' : 'var(--error)'};">${r.price_change}</td>`;
+        html += `<td style="padding: 8px; text-align: center;">${r.status}</td>`;
+        html += `<td style="padding: 8px; text-align: right; font-weight: bold;">${r.score}</td>`;
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table>';
+      resultsTable.innerHTML = html;
+      resultsBox.style.display = 'block';
     }
 
     // Update runtime

@@ -34,7 +34,7 @@ app.post('/api/run-bot', (req, res) => {
   
   try {
     const pythonPath = 'python3' || 'python';
-    const scriptPath = path.join(__dirname, 'upbit_mega_fast.py');
+    const scriptPath = path.join(__dirname, 'upbit_api.py');
     
     // Execute with timeout
     const result = execSync(`${pythonPath} "${scriptPath}"`, {
@@ -43,15 +43,29 @@ app.post('/api/run-bot', (req, res) => {
       stdio: ['pipe', 'pipe', 'pipe']
     });
     
-    // Parse output for signal count
-    const signalMatch = result.match(/Sent (\d+) clean reports/);
-    const signalCount = signalMatch ? parseInt(signalMatch[1]) : 0;
+    // Parse JSON output from Python script
+    let botData = {};
+    try {
+      // Extract JSON from output (last line usually)
+      const lines = result.split('\n').filter(l => l.trim());
+      const jsonLine = lines[lines.length - 1];
+      botData = JSON.parse(jsonLine);
+    } catch (e) {
+      console.error('[API] Failed to parse bot output:', e.message);
+      botData = {
+        signals_count: 0,
+        results: [],
+        error: 'Failed to parse results'
+      };
+    }
     
-    console.log(`[API] Bot completed. Found ${signalCount} signals`);
+    console.log(`[API] Bot completed. Found ${botData.signals_count || 0} signals`);
     
     res.json({
       success: true,
-      signals_count: signalCount,
+      signals_count: botData.signals_count || 0,
+      results: botData.results || [],
+      timestamp: botData.timestamp || new Date().toISOString(),
       message: 'Bot executed successfully'
     });
     
@@ -61,7 +75,8 @@ app.post('/api/run-bot', (req, res) => {
     res.json({
       success: false,
       error: error.message || 'Bot execution failed',
-      signals_count: 0
+      signals_count: 0,
+      results: []
     });
   }
 });

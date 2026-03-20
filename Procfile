@@ -1,1 +1,1 @@
-web: node server.js
+web: pip install -r requirements.txt && node server.js

@@ -115,11 +115,14 @@ def main():
             if result:
                 results.append(result)
     
-    # Сортируем по vol_ratio (от большего к меньшему)
-    results.sort(key=lambda x: x["volume_ratio"], reverse=True)
+    # Фильтруем - только токены где волюм выросли (ratio > 1.0)
+    growth_only = [r for r in results if r["volume_ratio"] > 1.0]
     
-    # TOP-30
-    top_results = results[:30]
+    # Сортируем по vol_ratio (от большего к меньшему)
+    growth_only.sort(key=lambda x: x["volume_ratio"], reverse=True)
+    
+    # TOP-30 с ростом волюма
+    top_results = growth_only[:30]
     
     print(f"[+] Found {len(top_results)} anomalies", file=sys.stderr)
     

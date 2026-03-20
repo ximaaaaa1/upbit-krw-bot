@@ -52,6 +52,15 @@ def get_daily_volumes(ticker):
     except Exception as e:
         return None
 
+def get_emoji(ratio):
+    """Определить эмодзи по volume ratio"""
+    if ratio >= 10.0:
+        return "🚀"  # Большой spike
+    elif ratio >= 2.0:
+        return "📈"  # Средний
+    else:
+        return "📊"  # Маленький
+
 def analyze_ticker(ticker):
     """Анализ пары"""
     try:
@@ -61,14 +70,18 @@ def analyze_ticker(ticker):
         if not data:
             return None
         
+        ratio = data["volume_ratio"]
+        emoji = get_emoji(ratio)
+        
         return {
             "coin": coin,
             "ticker": ticker,
             "price": int(data["price"]),
             "today_volume": int(data["today_volume"]),
             "yesterday_volume": int(data["yesterday_volume"]),
-            "volume_ratio": round(data["volume_ratio"], 2),
-            "growth_pct": round(data["growth_pct"], 1)
+            "volume_ratio": round(ratio, 2),
+            "growth_pct": round(data["growth_pct"], 1),
+            "emoji": emoji
         }
     except:
         return None

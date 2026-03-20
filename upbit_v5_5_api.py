@@ -53,7 +53,7 @@ def get_daily_volumes(ticker):
         return None
 
 def analyze_ticker(ticker):
-    """Анализ пары"""
+    """Анализ пары с фильтрами"""
     try:
         coin = ticker.split("-")[1]
         data = get_daily_volumes(ticker)
@@ -61,14 +61,38 @@ def analyze_ticker(ticker):
         if not data:
             return None
         
+        price = data["price"]
+        yesterday_vol = data["yesterday_volume"]
+        today_vol = data["today_volume"]
+        ratio = data["volume_ratio"]
+        
+        # ФИЛЬТРЫ для качественных сигналов:
+        
+        # 1. Исключить копейчные токены (< 1 KRW)
+        if price < 1:
+            return None
+        
+        # 2. Исключить микро-ликвидность (вчерашний vol < 100k)
+        if yesterday_vol < 100000:
+            return None
+        
+        # 3. Только токены с ростом волюма (ratio > 1.0)
+        if ratio <= 1.0:
+            return None
+        
+        # 4. Исключить экстремальные спайки (> 50x) - скорее всего делистинг/баг
+        if ratio > 50:
+            return None
+        
         return {
             "coin": coin,
             "ticker": ticker,
-            "price": int(data["price"]),
-            "today_volume": int(data["today_volume"]),
-            "yesterday_volume": int(data["yesterday_volume"]),
-            "volume_ratio": round(data["volume_ratio"], 2),
-            "growth_pct": round(data["growth_pct"], 1)
+            "price": int(price),
+            "today_volume": int(today_vol),
+            "yesterday_volume": int(yesterday_vol),
+            "volume_ratio": round(ratio, 2),
+            "growth_pct": round(data["growth_pct"], 1),
+            "quality_score": round(ratio * (today_vol / yesterday_vol), 2)  # Итоговый скор
         }
     except:
         return None
@@ -115,22 +139,35 @@ def main():
             if result:
                 results.append(result)
     
-    # Фильтруем только токены с ростом волюма (ratio > 1.0)
-    growth_results = [r for r in results if r["volume_ratio"] > 1.0]
+    # Результаты уже отфильтрованы в analyze_ticker()
+    # Сортируем по quality_score (от большего к меньшему)
+    results.sort(key=lambda x: x.get("quality_score", x["volume_ratio"]), reverse=True)
     
-    # Сортируем по vol_ratio (от большего к меньшему)
-    growth_results.sort(key=lambda x: x["volume_ratio"], reverse=True)
+    # TOP-30
+    top_results = results[:30]
     
-    # TOP-30 (только с ростом)
-    top_results = growth_results[:30]
+    # Статистика
+    total_analyzed = len(markets)
+    total_growth = len(results)
+    growth_pct = (total_growth / total_analyzed * 100) if total_analyzed > 0 else 0
     
-    print(f"[+] Found {len(top_results)} growing tokens (from {len(results)} total)", file=sys.stderr)
+    print(f"[+] Analyzed: {total_analyzed} | Growth: {total_growth} | Percentage: {growth_pct:.1f}%", file=sys.stderr)
+    print(f"[+] TOP tokens (by ratio):", file=sys.stderr)
+    for i, r in enumerate(top_results[:5], 1):
+        print(f"  {i}. {r['coin']} {r['volume_ratio']:.2f}x (+{r['growth_pct']:.1f}%)", file=sys.stderr)
     
-    # Выводим JSON
+    # Выводим JSON с статистикой
     output = {
         "success": True,
         "timestamp": None,
         "signals_count": len(top_results),
+        "stats": {
+            "total_analyzed": total_analyzed,
+            "tokens_with_growth": total_growth,
+            "growth_percentage": round(growth_pct, 1),
+            "avg_ratio": round(sum(r["volume_ratio"] for r in top_results) / len(top_results) if top_results else 0, 2),
+            "best_token": f"{top_results[0]['coin']} ({top_results[0]['volume_ratio']:.2f}x)" if top_results else "N/A"
+        },
         "results": top_results
     }
     

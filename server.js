@@ -85,6 +85,67 @@ app.post('/api/run-bot', (req, res) => {
   }
 });
 
+// V5.5 Daily Volume Analysis
+app.post('/api/analyze', (req, res) => {
+  console.log(`[API] V5.5 Daily Volume Analysis started`);
+  
+  try {
+    const pythonPath = 'python3' || 'python';
+    const scriptPath = path.join(__dirname, 'upbit_v5_5_api.py');
+    
+    // Check if script exists
+    if (!fs.existsSync(scriptPath)) {
+      return res.status(500).json({
+        success: false,
+        error: 'V5.5 script not found',
+        results: []
+      });
+    }
+    
+    let result = '';
+    try {
+      result = execSync(`${pythonPath} "${scriptPath}"`, {
+        timeout: 180000, // 3 minutes max
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        maxBuffer: 10 * 1024 * 1024  // 10MB buffer for large outputs
+      });
+    } catch (e) {
+      result = e.stdout || '';
+      console.error('[API] V5.5 error:', e.stderr || e.message);
+    }
+    
+    let v55Data = { success: false, signals_count: 0, results: [] };
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        v55Data = JSON.parse(jsonMatch[0]);
+      }
+    } catch (parseErr) {
+      console.error('[API] V5.5 parse error:', parseErr.message);
+    }
+    
+    console.log(`[API] V5.5 completed. Found ${v55Data.signals_count} anomalies`);
+    
+    res.json({
+      success: v55Data.success && v55Data.signals_count > 0,
+      signals_count: v55Data.signals_count || 0,
+      results: (v55Data.results || []).slice(0, 30),  // Top 30
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[API] V5.5 error:', error.message);
+    
+    res.json({
+      success: false,
+      error: error.message || 'V5.5 analysis failed',
+      signals_count: 0,
+      results: []
+    });
+  }
+});
+
 // Serve index.html for any other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));

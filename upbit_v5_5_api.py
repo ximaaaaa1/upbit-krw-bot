@@ -52,15 +52,6 @@ def get_daily_volumes(ticker):
     except Exception as e:
         return None
 
-def get_emoji(ratio):
-    """Определить эмодзи по volume ratio"""
-    if ratio >= 10.0:
-        return "🚀"  # Большой spike
-    elif ratio >= 2.0:
-        return "📈"  # Средний
-    else:
-        return "📊"  # Маленький
-
 def analyze_ticker(ticker):
     """Анализ пары"""
     try:
@@ -70,18 +61,14 @@ def analyze_ticker(ticker):
         if not data:
             return None
         
-        ratio = data["volume_ratio"]
-        emoji = get_emoji(ratio)
-        
         return {
             "coin": coin,
             "ticker": ticker,
             "price": int(data["price"]),
             "today_volume": int(data["today_volume"]),
             "yesterday_volume": int(data["yesterday_volume"]),
-            "volume_ratio": round(ratio, 2),
-            "growth_pct": round(data["growth_pct"], 1),
-            "emoji": emoji
+            "volume_ratio": round(data["volume_ratio"], 2),
+            "growth_pct": round(data["growth_pct"], 1)
         }
     except:
         return None
@@ -128,13 +115,16 @@ def main():
             if result:
                 results.append(result)
     
+    # Фильтруем только токены с ростом волюма (ratio > 1.0)
+    growth_results = [r for r in results if r["volume_ratio"] > 1.0]
+    
     # Сортируем по vol_ratio (от большего к меньшему)
-    results.sort(key=lambda x: x["volume_ratio"], reverse=True)
+    growth_results.sort(key=lambda x: x["volume_ratio"], reverse=True)
     
-    # TOP-30 (все - и рост и падение)
-    top_results = results[:30]
+    # TOP-30 (только с ростом)
+    top_results = growth_results[:30]
     
-    print(f"[+] Found {len(top_results)} anomalies", file=sys.stderr)
+    print(f"[+] Found {len(top_results)} growing tokens (from {len(results)} total)", file=sys.stderr)
     
     # Выводим JSON
     output = {

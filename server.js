@@ -87,7 +87,10 @@ app.post('/api/run-bot', (req, res) => {
 
 // V5.5 Daily Volume Analysis
 app.post('/api/analyze', (req, res) => {
-  console.log(`[API] V5.5 Daily Volume Analysis started`);
+  // Set longer timeout for this endpoint
+  req.socket.setTimeout(300000);  // 5 minutes
+  
+  console.log(`[API] V5.5 Daily Volume Analysis started at ${new Date().toISOString()}`);
   
   try {
     const pythonPath = 'python3' || 'python';
@@ -105,7 +108,7 @@ app.post('/api/analyze', (req, res) => {
     let result = '';
     try {
       result = execSync(`${pythonPath} "${scriptPath}"`, {
-        timeout: 180000, // 3 minutes max
+        timeout: 240000, // 4 minutes max
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
         maxBuffer: 10 * 1024 * 1024  // 10MB buffer for large outputs

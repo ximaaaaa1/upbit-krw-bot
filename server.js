@@ -33,8 +33,8 @@ app.post('/api/run-bot', (req, res) => {
   console.log(`[API] Starting bot: ${bot_type}`);
   
   try {
-    const pythonPath = 'python';
-    const scriptPath = 'C:\\Users\\Administrator\\.openclaw\\workspace\\upbit_mega_fast.py';
+    const pythonPath = 'python3' || 'python';
+    const scriptPath = path.join(__dirname, 'upbit_mega_fast.py');
     
     // Execute with timeout
     const result = execSync(`${pythonPath} "${scriptPath}"`, {

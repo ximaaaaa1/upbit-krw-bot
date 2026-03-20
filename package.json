@@ -1,0 +1,16 @@
+{
+  "name": "upbit-krw-bot-control",
+  "version": "1.0.0",
+  "description": "Upbit KRW Bot Control Panel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.1"
+  },
+  "engines": {
+    "node": "18.x || 20.x || 22.x || 24.x"
+  }
+}

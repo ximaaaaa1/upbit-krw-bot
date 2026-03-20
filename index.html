@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UPBIT KRW TRACKER // Live Bot Control</title>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --bg-base: #030407;
+      --bg-surface: rgba(255, 255, 255, 0.03);
+      --bg-surface-high: rgba(255, 255, 255, 0.08);
+      --text-primary: #FFFFFF;
+      --text-secondary: rgba(255, 255, 255, 0.5);
+      --accent: #FFFFFF;
+      --accent-glow: rgba(255, 255, 255, 0.15);
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Space Grotesk', sans-serif;
+      --gradient-text: linear-gradient(135deg, #FFFFFF 0%, #4A88FF 100%);
+      --success: #22D3EE;
+      --warning: #F59E0B;
+      --error: #EF4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      min-height: 100vh;
+      width: 100vw;
+    }
+
+    #webgl-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .title {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: var(--gradient-text);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.3em;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .stats-box {
+      background: var(--bg-surface);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 32px;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 40px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .control-card {
+      background: var(--bg-surface);
+      backdrop-filter: blur(20px);
+      border-radius: 32px;
+      padding: 40px;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg-surface-high);
+      border-radius: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #666;
+      animation: pulse-off 2s infinite;
+    }
+
+    .status-dot.running {
+      background: var(--success);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @keyframes pulse-off {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.6; }
+    }
+
+    .btn-run {
+      background: var(--success);
+      color: var(--bg-base);
+      height: 64px;
+      border-radius: 16px;
+      border: none;
+      font-weight: 700;
+      font-size: 16px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      transition: all 0.3s ease;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-run:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(34, 211, 238, 0.3);
+    }
+
+    .btn-run:disabled {
+      background: #666;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .btn-run.running {
+      background: var(--warning);
+      animation: pulse-btn 1s infinite;
+    }
+
+    @keyframes pulse-btn {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+    }
+
+    .logs-box {
+      background: var(--bg-surface-high);
+      border-radius: 16px;
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid rgba(74, 136, 255, 0.2);
+      display: none;
+    }
+
+    .logs-box.active {
+      display: block;
+    }
+
+    .log-line {
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      padding: 4px 0;
+      border-left: 2px solid transparent;
+      padding-left: 8px;
+    }
+
+    .log-line.success {
+      color: var(--success);
+      border-left-color: var(--success);
+    }
+
+    .log-line.error {
+      color: var(--error);
+      border-left-color: var(--error);
+    }
+
+    .log-line.info {
+      color: #4A88FF;
+      border-left-color: #4A88FF;
+    }
+
+    @media (max-width: 768px) {
+      .stats-box {
+        grid-template-columns: 1fr;
+      }
+      
+      .title {
+        font-size: 36px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="webgl-container"></div>
+
+  <div class="container">
+    <div class="header">
+      <h1 class="title">UPBIT KRW TRACKER</h1>
+      <p class="subtitle">Live Bot Control Panel</p>
+    </div>
+
+    <div class="stats-box">
+      <div class="stat">
+        <span class="stat-value" id="status-text">READY</span>
+        <span class="stat-label">Status</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="runtime">--:--</span>
+        <span class="stat-label">Runtime</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="signals">0</span>
+        <span class="stat-label">Signals Found</span>
+      </div>
+    </div>
+
+    <div class="control-card">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: var(--bg-surface-high); border-radius: 12px; font-size: 12px;">
+        <div style="font-family: var(--font-mono); color: var(--text-secondary);">
+          Backend URL:
+        </div>
+        <input type="text" id="backend-url" value="https://upbit-krw-bot.railway.app" style="
+          background: var(--bg-surface);
+          border: 1px solid rgba(74, 136, 255, 0.3);
+          border-radius: 8px;
+          padding: 8px 12px;
+          color: var(--text-primary);
+          font-family: var(--font-mono);
+          font-size: 12px;
+          outline: none;
+        " placeholder="https://your-backend-url.com">
+        <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7;">
+          ℹ️ Оставь это поле, если уже задеплоил бэкенд на Railway/Heroku
+        </div>
+      </div>
+
+      <div class="status-indicator">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text-full">Bot is idle. Click START to begin scanning.</span>
+      </div>
+
+      <button class="btn-run" id="btn-start" onclick="startBot()">
+        <i class="ph ph-play-circle"></i>
+        START BOT
+      </button>
+
+      <div class="logs-box" id="logs">
+        <div class="log-line info">[INFO] Logs will appear here...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let botRunning = false;
+    let startTime = null;
+    let signalCount = 0;
+
+    async function startBot() {
+      if (botRunning) return;
+      
+      const backendUrl = document.getElementById('backend-url').value.trim();
+      if (!backendUrl) {
+        alert('❌ Укажи Backend URL!');
+        return;
+      }
+      
+      botRunning = true;
+      startTime = Date.now();
+      signalCount = 0;
+      
+      const btn = document.getElementById('btn-start');
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text-full');
+      const logsBox = document.getElementById('logs');
+      
+      btn.disabled = true;
+      btn.classList.add('running');
+      statusDot.classList.add('running');
+      statusText.textContent = 'Bot is running... Scanning tokens...';
+      logsBox.classList.add('active');
+      logsBox.innerHTML = '';
+      
+      addLog('[INFO] Starting Upbit KRW bot...', 'info');
+      addLog('[INFO] Scanning 170+ KRW pairs...', 'info');
+      addLog(`[INFO] Backend: ${backendUrl}`, 'info');
+      
+      try {
+        const apiUrl = `${backendUrl}/api/run-bot`;
+        addLog(`[INFO] Connecting to: ${apiUrl}`, 'info');
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bot_type: 'upbit_krw_v5_3' }),
+          timeout: 180000
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          addLog(`[✓] Bot execution successful!`, 'success');
+          addLog(`[✓] Found ${data.signals_count} anomalies`, 'success');
+          addLog(`[✓] Results sent to Telegram`, 'success');
+          signalCount = data.signals_count || 0;
+          document.getElementById('signals').textContent = signalCount;
+        } else {
+          addLog(`[✗] Error: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        addLog(`[✗] Connection error: ${err.message}`, 'error');
+        addLog(`[✗] Проверь что Backend работает:`, 'error');
+        addLog(`[✗] ${backendUrl}`, 'error');
+      }
+      
+      botRunning = false;
+      btn.disabled = false;
+      btn.classList.remove('running');
+      statusDot.classList.remove('running');
+      statusText.textContent = 'Bot completed. Ready to run again.';
+    }
+
+    function addLog(message, type = 'info') {
+      const logsBox = document.getElementById('logs');
+      const line = document.createElement('div');
+      line.className = `log-line ${type}`;
+      line.textContent = message;
+      logsBox.appendChild(line);
+      logsBox.scrollTop = logsBox.scrollHeight;
+    }
+
+    // Update runtime
+    setInterval(() => {
+      if (botRunning && startTime) {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        document.getElementById('runtime').textContent = 
+          `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+    }, 1000);
+
+    // Three.js Background
+    const container = document.getElementById('webgl-container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 1;
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    
+    const vertexShader = `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position, 1.0);
+      }
+    `;
+
+    const fragmentShader = `
+      uniform float u_time;
+      uniform vec2 u_resolution;
+      uniform vec2 u_mouse;
+      varying vec2 vUv;
+
+      vec2 hash(vec2 p) {
+        p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)));
+        return -1.0 + 2.0*fract(sin(p)*43758.5453123);
+      }
+
+      float noise(in vec2 p) {
+        const float K1 = 0.366025404;
+        const float K2 = 0.211324865;
+        vec2 i = floor(p + (p.x+p.y)*K1);
+        vec2 a = p - i + (i.x+i.y)*K2;
+        vec2 o = (a.x>a.y) ? vec2(1.0,0.0) : vec2(0.0,1.0);
+        vec2 b = a - o + K2;
+        vec2 c = a - 1.0 + 2.0*K2;
+        vec3 h = max(0.5-vec3(dot(a,a), dot(b,b), dot(c,c)), 0.0);
+        vec3 n = h*h*h*h*vec3(dot(a,hash(i+0.0)), dot(b,hash(i+o)), dot(c,hash(i+1.0)));
+        return dot(n, vec3(70.0));
+      }
+
+      float sdArc(vec2 p, vec2 center, float radius, float width, float warp) {
+        p.y += sin(p.x * 2.0 + u_time * 0.4) * warp;
+        p.x += noise(p * 1.5 + u_time * 0.1) * (warp * 0.8);
+        float d = length(p - center) - radius;
+        return abs(d) - width;
+      }
+
+      void main() {
+        vec2 st = gl_FragCoord.xy / u_resolution.xy;
+        st.x *= u_resolution.x / u_resolution.y;
+        vec2 mouseOffset = (u_mouse - 0.5) * 0.15;
+        st += mouseOffset;
+        
+        vec2 center = vec2(0.1, 0.5);
+        float d1 = sdArc(st, center, 0.9, 0.01, 0.12);
+        float d2 = sdArc(st, center, 0.92, 0.05, 0.2);
+        
+        float coreGlow = exp(-d1 * 45.0);
+        float fringeGlow = exp(-d2 * 12.0);
+        float wash = smoothstep(1.2, -0.4, st.x) * 0.25;
+        
+        vec3 coreColor = vec3(0.3, 0.7, 1.0);
+        vec3 fringeColor = vec3(0.3, 0.5, 1.0);
+        vec3 finalColor = coreColor * coreGlow + fringeColor * fringeGlow + fringeColor * wash;
+        float alpha = clamp(coreGlow + fringeGlow + wash, 0.0, 1.0);
+        
+        gl_FragColor = vec4(finalColor, alpha * 0.8);
+      }
+    `;
+
+    const material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        u_time: { value: 0.0 },
+        u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        u_mouse: { value: new THREE.Vector2(0.5, 0.5) }
+      },
+      transparent: true,
+      blending: THREE.NormalBlending
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    let targetMouse = new THREE.Vector2(0.5, 0.5);
+    window.addEventListener('mousemove', (e) => {
+      targetMouse.x = e.clientX / window.innerWidth;
+      targetMouse.y = 1.0 - (e.clientY / window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      material.uniforms.u_time.value += 0.015;
+      material.uniforms.u_mouse.value.lerp(targetMouse, 0.05);
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      material.uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+  </script>
+</body>
+</html>

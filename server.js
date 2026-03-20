@@ -68,7 +68,7 @@ app.post('/api/run-bot', (req, res) => {
     res.json({
       success: botData.success && botData.signals_count > 0,
       signals_count: botData.signals_count || 0,
-      results: botData.results || [],
+      results: (botData.results || []).slice(0, 50),  // Top 50
       timestamp: botData.timestamp || new Date().toISOString(),
       message: botData.signals_count > 0 ? 'Bot executed successfully' : 'No anomalies detected'
     });

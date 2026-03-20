@@ -104,7 +104,7 @@ def scan_all():
     # Sort by score
     results.sort(key=lambda x: x['score'], reverse=True)
     
-    return results[:30]  # Top 30
+    return results[:50]  # Top 50
 
 def main():
     """Main entry point"""
